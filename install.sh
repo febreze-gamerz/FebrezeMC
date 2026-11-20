@@ -150,12 +150,12 @@ banner(){
     clear 2>/dev/null || true
     panel_top "FEBREZEMC"
     panel_blank
-    box_center "$BOLD$CYAN" "███████╗███████╗██████╗ ██████╗ ███████╗"
-    box_center "$BOLD$CYAN" "██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝"
-    box_center "$BOLD$CYAN" "█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ "
-    box_center "$BOLD$CYAN" "██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  "
-    box_center "$BOLD$CYAN" "██║     ███████╗██║  ██║██║  ██║███████╗"
-    box_center "$BOLD$CYAN" "╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝"
+    box_center "$BOLD$CYAN" "███████╗███████╗██████╗ ██████╗ ███████╗███████╗███████╗"
+    box_center "$BOLD$CYAN" "██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝╚══███╔╝██╔════╝"
+    box_center "$BOLD$CYAN" "█████╗  █████╗  ██████╔╝██████╔╝█████╗    ███╔╝ █████╗  "
+    box_center "$BOLD$CYAN" "██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗██╔══╝   ███╔╝  ██╔══╝  "
+    box_center "$BOLD$CYAN" "██║     ███████╗██████╔╝██║  ██║███████╗███████╗███████╗"
+    box_center "$BOLD$CYAN" "╚═╝     ╚══════╝╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝"
     panel_blank
     box_center "$BOLD$CYAN" "FEBREZEMC"
     box_center "$CYAN" "MINECRAFT SERVER INSTALLER"
