@@ -49,7 +49,7 @@ line(){ printf '%b%s%b\n' "$BLUE" "───────────────
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-# Count visible characters by stripping ANSI escapes with pure Bash parameter expansion
+# Count visible characters (excluding ANSI escape sequences)
 visible_len(){
     local s="$1"
     local esc=$'\033'
@@ -73,17 +73,19 @@ visible_len(){
     printf '%s' "${#out}"
 }
 
+# Inner width between left '║' and right '║' is 58 columns:
+# [1 space] + [56 content columns] + [1 space] = 58 columns.
 box_line(){
     local base_color="$1"
     local content="$2"
-    local inner_w=56
+    local content_w=56
     local vlen pad
 
     vlen="$(visible_len "$content")"
-    if (( vlen >= inner_w )); then
+    if (( vlen >= content_w )); then
         pad=0
     else
-        pad=$(( inner_w - vlen ))
+        pad=$(( content_w - vlen ))
     fi
 
     printf '%b║%b %b%s%b%*s %b║%b\n' \
@@ -96,15 +98,15 @@ box_line(){
 box_center(){
     local base_color="$1"
     local content="$2"
-    local inner_w=56
+    local content_w=56
     local vlen total_pad left_pad right_pad
 
     vlen="$(visible_len "$content")"
-    if (( vlen >= inner_w )); then
+    if (( vlen >= content_w )); then
         left_pad=0
         right_pad=0
     else
-        total_pad=$(( inner_w - vlen ))
+        total_pad=$(( content_w - vlen ))
         left_pad=$(( total_pad / 2 ))
         right_pad=$(( total_pad - left_pad ))
     fi
@@ -139,23 +141,21 @@ panel_section(){
 
 banner(){
     clear 2>/dev/null || true
-    printf '%b╔══════════════════════════════════════════════════════════╗%b\n' "$BLUE" "$RESET"
-    printf '%b║%b  %bFEBREZEMC%b                                              %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b╠══════════════════════════════════════════════════════════╣%b\n' "$BLUE" "$RESET"
-    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
-    printf '%b║%b       %b███████╗███████╗██████╗ ██████╗ ███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b       %b██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b       %b█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b       %b██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b       %b██║     ███████╗██║  ██║██║  ██║███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b       %b╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
-    printf '%b║%b                   %bFEBREZEMC%b                             %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b            %bMINECRAFT SERVER INSTALLER%b                   %b║%b\n' "$BLUE" "$RESET" "$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
-    printf '%b║%b                    %bVersion %-24s%b%b║%b\n' "$BLUE" "$RESET" "$BOLD$GREEN" "$FEBREZE_VERSION" "$RESET" "$BLUE" "$RESET"
-    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
-    printf '%b╚══════════════════════════════════════════════════════════╝%b\n' "$BLUE" "$RESET"
+    panel_top "FEBREZEMC"
+    panel_blank
+    box_center "$BOLD$CYAN" "███████╗███████╗██████╗ ██████╗ ███████╗"
+    box_center "$BOLD$CYAN" "██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝"
+    box_center "$BOLD$CYAN" "█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ "
+    box_center "$BOLD$CYAN" "██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  "
+    box_center "$BOLD$CYAN" "██║     ███████╗██║  ██║██║  ██║███████╗"
+    box_center "$BOLD$CYAN" "╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝"
+    panel_blank
+    box_center "$BOLD$CYAN" "FEBREZEMC"
+    box_center "$CYAN" "MINECRAFT SERVER INSTALLER"
+    panel_blank
+    box_center "$BOLD$GREEN" "Version ${FEBREZE_VERSION}"
+    panel_blank
+    panel_bottom
 }
 
 ask(){
