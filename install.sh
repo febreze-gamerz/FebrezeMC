@@ -17,7 +17,6 @@ SERVER_DIR="$(pwd -P)"
 IS_PTERODACTYL=0
 SOFTWARE=""
 MC_VERSION=""
-SERVER_NAME=""
 PANEL_PORT="${SERVER_PORT:-}"
 SERVER_PORT=""
 RAM_GB=""
@@ -173,9 +172,6 @@ REQUIRED_JAVA="$(jq -r '.javaVersion.majorVersion // 8' <<< "$VERSION_META")"
 [[ "$REQUIRED_JAVA" =~ ^[0-9]+$ ]] || fail "Could not read the required Java version."
 info "Minecraft $MC_VERSION requires Java $REQUIRED_JAVA."
 
-ask "Server name (letters, numbers, - or _): " SERVER_NAME
-SERVER_NAME="$(printf '%s' "$SERVER_NAME" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
-[[ "$SERVER_NAME" =~ ^[a-z0-9_-]{1,40}$ ]] || fail "Server name must be 1-40 letters, numbers, - or _."
 ask "Server RAM in GB [${DEFAULT_RAM}]: " RAM_GB
 RAM_GB="${RAM_GB:-$DEFAULT_RAM}"
 [[ "$RAM_GB" =~ ^[0-9]{1,3}$ ]] || fail "RAM must be a whole number."
@@ -362,7 +358,7 @@ EOF
 cat > server.properties <<EOF
 online-mode=${ONLINE_MODE}
 server-port=${SERVER_PORT}
-motd=${SERVER_NAME}
+motd=A Minecraft Server
 enable-command-block=false
 enable-rcon=false
 spawn-protection=16
