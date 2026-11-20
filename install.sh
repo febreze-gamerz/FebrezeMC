@@ -49,15 +49,30 @@ line(){ printf '%b%s%b\n' "$BLUE" "───────────────
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-# Count visible characters (excluding ANSI CSI sequences like \033[38;5;81m).
+# Count visible characters by stripping ANSI escapes with pure Bash parameter expansion
 visible_len(){
-    local s="$1" clean
-    clean="$(printf '%s' "$s" | sed -E $'s/\x1B\\[[0-9;]*[A-Za-z]//g')"
-    LC_ALL=C.UTF-8 printf '%s' "$clean" | awk '{ print length($0) }'
+    local s="$1"
+    local esc=$'\033'
+    local out="" i=0 ch n=${#s}
+
+    while (( i < n )); do
+        ch="${s:i:1}"
+        if [[ "$ch" == "$esc" && "${s:i+1:1}" == "[" ]]; then
+            (( i += 2 ))
+            while (( i < n )); do
+                ch="${s:i:1}"
+                (( i++ ))
+                [[ "$ch" =~ [A-Za-z] ]] && break
+            done
+        else
+            out+="$ch"
+            (( i++ ))
+        fi
+    done
+
+    printf '%s' "${#out}"
 }
 
-# Print a row inside a 60-col box (inner width = 58: 1 space left + 56 content + 1 space right).
-# Usage: box_line "default_color" "content_with_optional_escapes"
 box_line(){
     local base_color="$1"
     local content="$2"
@@ -65,7 +80,7 @@ box_line(){
     local vlen pad
 
     vlen="$(visible_len "$content")"
-    if (( vlen > inner_w )); then
+    if (( vlen >= inner_w )); then
         pad=0
     else
         pad=$(( inner_w - vlen ))
