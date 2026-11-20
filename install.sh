@@ -49,12 +49,20 @@ line(){ printf '%b%s%b\n' "$BLUE" "───────────────
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-# Count UTF-8 characters (excluding ANSI escape sequences) even when LC_ALL=C is set
+# Count display columns accurately (1 per visible char, ignoring ANSI escape codes)
 visible_len(){
     local s="$1"
-    local esc=$'\033'
-    local out="" i=0 ch n=${#s}
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c '
+import re, sys
+ansi_re = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+text = ansi_re.sub("", sys.argv[1])
+print(len(text))
+' "$s"
+        return
+    fi
 
+    local esc=$'\033' out="" i=0 ch n=${#s}
     while (( i < n )); do
         ch="${s:i:1}"
         if [[ "$ch" == "$esc" && "${s:i+1:1}" == "[" ]]; then
@@ -69,8 +77,7 @@ visible_len(){
             (( i++ ))
         fi
     done
-
-    LC_ALL=C.UTF-8 printf '%s' "$out" | awk '{ print length($0) }'
+    printf '%s' "${#out}"
 }
 
 # Inner width between left '║' and right '║' is 58 columns:
