@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# FebrezeMC 2.2.0 - Standalone Minecraft server installer
+# FebrezeMC 2.3.0 - Standalone Minecraft server installer
 # Installs into the current working directory on Linux.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
 
-FEBREZE_VERSION="2.2.0"
+FEBREZE_VERSION="2.3.0"
 USER_AGENT="FebrezeMC/${FEBREZE_VERSION} (https://github.com/febreze-gamerz/FebrezeMC)"
 MANIFEST_URL="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 DEFAULT_PORT=25565
@@ -29,32 +29,51 @@ INSTALL_COMPLETE=0
 
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; GREEN='\033[0;32m'
 YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+DIM='\033[2m'; BOLD='\033[1m'
 info(){ printf '%b[INFO]%b %s\n' "$CYAN" "$RESET" "$*"; }
-success(){ printf '%b[OK]%b %s\n' "$GREEN" "$RESET" "$*"; }
+success(){ printf '%b[ OK ]%b %s\n' "$GREEN" "$RESET" "$*"; }
 warn(){ printf '%b[WARN]%b %s\n' "$YELLOW" "$RESET" "$*"; }
-error(){ printf '%b[ERROR]%b %s\n' "$RED" "$RESET" "$*" >&2; }
-line(){ printf '%b%s%b\n' "$BLUE" "────────────────────────────────────────────────────────────────" "$RESET"; }
+error(){ printf '%b[FAIL]%b %s\n' "$RED" "$RESET" "$*" >&2; }
+line(){ printf '%b%s%b\n' "$BLUE" "────────────────────────────────────────────────────────────" "$RESET"; }
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-section(){
-    printf '\\n%b━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\\n' "$BLUE" "$RESET"
-    printf '%b  %s%b\\n' "$CYAN" "$1" "$RESET"
-    printf '%b━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\\n' "$BLUE" "$RESET"
+# Consistent 60-column terminal panels.
+panel_top(){
+    printf '%b╔══════════════════════════════════════════════════════════╗%b\n' "$BLUE" "$RESET"
+    printf '%b║%-58s║%b\n' "$CYAN" "  $1" "$RESET"
+    printf '%b╠══════════════════════════════════════════════════════════╣%b\n' "$BLUE" "$RESET"
+}
+panel_row(){
+    local value="$1"
+    value="${value:0:58}"
+    printf '%b║  %-56s║%b\n' "$RESET" "$value" "$RESET"
+}
+panel_blank(){ printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"; }
+panel_bottom(){ printf '%b╚══════════════════════════════════════════════════════════╝%b\n' "$BLUE" "$RESET"; }
+panel_end(){ panel_bottom; echo; }
+panel_section(){
+    echo
+    panel_top "$1"
 }
 banner(){
-    printf '%b' "$CYAN"
-    cat <<'BANNER'
-  ______          __                    __  ___ ____
- / ____/___ _____/ /__  ______  ______/  |/  // __ \\
-/ /_  / __ `/ __  / _ \\/ ___/ / / / __/ /|_/ // / / /
-/ __/ / /_/ / /_/ /  __/ /  / /_/ / /_/ /  / // /_/ /
-/_/    \\__,_/\\__,_/\\___/_/   \\__,_/\\__/_/  /_/\\____/
-BANNER
-    printf '%b  MINECRAFT SERVER INSTALLER  •  v%s%b\\n' "$BLUE" "$FEBREZE_VERSION" "$RESET"
-    printf '%b  Standalone Linux edition%b\\n' "$GREEN" "$RESET"
+    clear 2>/dev/null || true
+    panel_top "FEBREZEMC"
+    panel_blank
+    printf '%b║       ███████╗███████╗██████╗ ██████╗ ███████╗           ║%b\n' "$CYAN" "$RESET"
+    printf '%b║       ██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝           ║%b\n' "$CYAN" "$RESET"
+    printf '%b║       █████╗  █████╗  ██████╔╝██████╔╝  ███╔╝            ║%b\n' "$CYAN" "$RESET"
+    printf '%b║       ██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝             ║%b\n' "$CYAN" "$RESET"
+    printf '%b║       ██║     ███████╗██║  ██║██║  ██║███████╗           ║%b\n' "$CYAN" "$RESET"
+    printf '%b║       ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝           ║%b\n' "$CYAN" "$RESET"
+    panel_blank
+    printf '%b║                   FEBREZEMC                              ║%b\n' "$BOLD$CYAN" "$RESET"
+    printf '%b║            MINECRAFT SERVER INSTALLER                     ║%b\n' "$CYAN" "$RESET"
+    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    printf '%b║                    Version %-25s║%b\n' "$GREEN" "$FEBREZE_VERSION" "$RESET"
+    panel_blank
+    panel_bottom
 }
-
 ask(){
     local prompt="$1" var="$2" value=""
     read -r -p "$prompt" value || fail "No input received. Run this installer in an interactive terminal."
@@ -131,69 +150,109 @@ MAX_RAM_GB=$(( (RAM_AVAILABLE_MB - RESERVED_RAM_MB) / 1024 ))
 DEFAULT_RAM=2
 (( DEFAULT_RAM <= MAX_RAM_GB )) || DEFAULT_RAM="$MAX_RAM_GB"
 
-echo
-line
-printf '%b       FEBREZEMC SERVER INSTALLER%b\n' "$CYAN" "$RESET"
-printf '%b       Version %s%b\n' "$BLUE" "$FEBREZE_VERSION" "$RESET"
-line
-echo
 banner
-section "SYSTEM CHECK"
+echo
+printf '        %b[1]%b Create Minecraft Server\\n' "$GREEN" "$RESET"
+printf '        %b[0]%b Exit\\n\\n' "$YELLOW" "$RESET"
+ask "Select an option: " MAIN_CHOICE
+case "$MAIN_CHOICE" in
+    1) ;;
+    0) info "Goodbye."; exit 0 ;;
+    *) fail "Invalid menu option." ;;
+esac
+
 if (( DRY_RUN == 1 )); then
     warn "DRY RUN enabled — downloads and file creation will be skipped."
 fi
-info "Environment: standalone Linux"
-printf '  %-20s %s\\n' "Operating system:" "$OS_NAME"
-printf '  %-20s %s\\n' "Architecture:" "$ARCH"
-printf '  %-20s %s\\n' "CPU cores:" "$CPU_CORES"
-printf '  %-20s %s MB\\n' "Total memory:" "$RAM_TOTAL_MB"
-printf '  %-20s %s MB\\n' "Available memory:" "$RAM_AVAILABLE_MB"
-printf '  %-20s %s MB\\n' "Free disk:" "$DISK_FREE_MB"
-printf '  %-20s %s\\n' "Install folder:" "$SERVER_DIR"
+JAVA_DISPLAY="Not detected"
+if need java; then
+    JAVA_DISPLAY="$(java -version 2>&1 | awk -F'"' '/version/ {print "Java " $2; exit}')"
+    JAVA_DISPLAY="${JAVA_DISPLAY:-Installed}"
+fi
+panel_section "VPS INFORMATION"
+panel_blank
+panel_row "OS             ${OS_NAME}"
+panel_row "CPU            ${CPU_CORES} vCPU"
+panel_row "RAM            $((RAM_TOTAL_MB / 1024)) GB (${RAM_TOTAL_MB} MB)"
+panel_row "RAM AVAILABLE  $((RAM_AVAILABLE_MB / 1024)) GB (${RAM_AVAILABLE_MB} MB)"
+panel_row "STORAGE        $((DISK_FREE_MB / 1024)) GB free"
+panel_row "JAVA           ${JAVA_DISPLAY}"
+panel_row "ARCHITECTURE   ${ARCH}"
+panel_blank
+panel_bottom
 echo
-info "The server will be created here. Start it later with: ./start.sh"
-ask "Continue with installation? [y/N]: " CONTINUE
-[[ "$CONTINUE" =~ ^[Yy]$ ]] || fail "Installation cancelled."
+info "Install location: $SERVER_DIR"
+ask "Continue? [Y/n]: " CONTINUE
+[[ ! "$CONTINUE" =~ ^[Nn]$ ]] || fail "Installation cancelled."
 
-section "SERVER SOFTWARE"
-printf '%bSelect Minecraft server software:%b\\n' "$CYAN" "$RESET"
-[[ "$CONTINUE" =~ ^[Yy]$ ]] || fail "Cancelled."
-
+panel_section "SELECT SERVER SOFTWARE"
+panel_blank
+panel_row "[1] Paper       - Performance + Plugins"
+panel_row "[2] Purpur      - Customization + Plugins"
+panel_row "[3] Vanilla     - Official Minecraft"
+panel_row "[4] Forge       - Modded Minecraft"
+panel_row "[5] Spigot      - Plugin Support"
+panel_row "[6] Fabric      - Lightweight Mods"
+panel_blank
+panel_row "[0] Exit"
+panel_bottom
 echo
-printf '%bSelect Minecraft server software:%b\n' "$CYAN" "$RESET"
-echo "  1) Paper   2) Purpur   3) Vanilla"
-echo "  4) Forge   5) Spigot   6) Fabric"
-ask "Select software [1-6]: " SOFTWARE_CHOICE
+ask "Select software [1-6, 0]: " SOFTWARE_CHOICE
 case "$SOFTWARE_CHOICE" in
     1) SOFTWARE="Paper" ;; 2) SOFTWARE="Purpur" ;; 3) SOFTWARE="Vanilla" ;;
     4) SOFTWARE="Forge" ;; 5) SOFTWARE="Spigot" ;; 6) SOFTWARE="Fabric" ;;
+    0) info "Goodbye."; exit 0 ;;
     *) fail "Invalid software selection." ;;
 esac
 
-section "MINECRAFT VERSION"
-ask "Minecraft version (example: 1.21.11): " MC_VERSION
+panel_section "SELECT MINECRAFT VERSION"
+panel_blank
+panel_row "Enter the Minecraft release you want to install."
+panel_row "Example: 1.21.11"
+panel_bottom
+echo
+ask "Minecraft version: " MC_VERSION
 [[ "$MC_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "Invalid Minecraft version format."
-info "Checking Mojang version metadata..."
+info "Checking Minecraft version availability..."
 MANIFEST="$(fetch_json "$MANIFEST_URL")" || fail "Could not reach Mojang's version manifest."
 VERSION_URL="$(jq -r --arg v "$MC_VERSION" 'first(.versions[] | select(.id == $v and .type == "release") | .url) // empty' <<< "$MANIFEST")"
 [[ -n "$VERSION_URL" ]] || fail "Minecraft $MC_VERSION is not a release listed by Mojang."
 VERSION_META="$(fetch_json "$VERSION_URL")" || fail "Could not get Minecraft version metadata."
 REQUIRED_JAVA="$(jq -r '.javaVersion.majorVersion // 8' <<< "$VERSION_META")"
 [[ "$REQUIRED_JAVA" =~ ^[0-9]+$ ]] || fail "Could not read the required Java version."
+success "Minecraft $MC_VERSION is available."
 info "Minecraft $MC_VERSION requires Java $REQUIRED_JAVA."
 
-section "MEMORY ALLOCATION"
-info "Suggested maximum allocation: ${MAX_RAM_GB} GB."
+panel_section "RAM CONFIGURATION"
+panel_blank
+panel_row "Total VPS RAM:       $((RAM_TOTAL_MB / 1024)) GB"
+panel_row "Available RAM:       $((RAM_AVAILABLE_MB / 1024)) GB"
+panel_row "Maximum safe choice: ${MAX_RAM_GB} GB"
+panel_blank
+panel_row "[1] 1 GB"
+panel_row "[2] 2 GB"
+panel_row "[3] 3 GB"
+panel_row "[4] 4 GB"
+panel_row "[5] Custom amount"
+panel_bottom
+echo
 ask "Server RAM in GB [${DEFAULT_RAM}]: " RAM_GB
 RAM_GB="${RAM_GB:-$DEFAULT_RAM}"
 [[ "$RAM_GB" =~ ^[0-9]{1,3}$ ]] || fail "RAM must be a whole number."
 RAM_GB=$((10#$RAM_GB))
 (( RAM_GB >= 1 && RAM_GB <= MAX_RAM_GB )) || fail "Choose between 1 and ${MAX_RAM_GB} GB."
 
+panel_section "ACCOUNT AUTHENTICATION"
+panel_blank
+panel_row "Allow offline / cracked accounts?"
+panel_blank
+panel_row "[1] YES  - online-mode=false"
+panel_row "[2] NO   - online-mode=true (recommended)"
+panel_blank
+panel_row "WARNING: Offline mode allows username"
+panel_row "impersonation. It is unsafe for public servers."
+panel_bottom
 echo
-printf '%bAccount authentication%b\n' "$CYAN" "$RESET"
-echo "  1) Online mode (recommended)"
-echo "  2) Offline mode (allows unauthenticated usernames)"
 ask "Choose [1/2]: " AUTH_CHOICE
 case "$AUTH_CHOICE" in
     1) ONLINE_MODE=true ;;
@@ -201,7 +260,12 @@ case "$AUTH_CHOICE" in
     *) fail "Choose 1 or 2." ;;
 esac
 
-section "NETWORK CONFIGURATION"
+panel_section "NETWORK CONFIGURATION"
+panel_blank
+panel_row "Default Minecraft Java port: 25565"
+panel_row "Use this port unless you need a custom one."
+panel_bottom
+echo
 PORT_DEFAULT="$DEFAULT_PORT"
 ask "Server port [${PORT_DEFAULT}]: " SERVER_PORT
 SERVER_PORT="${SERVER_PORT:-$PORT_DEFAULT}"
@@ -212,11 +276,15 @@ if need ss && ss -H -ltn "sport = :${SERVER_PORT}" 2>/dev/null | grep -q .; then
     fail "TCP port $SERVER_PORT is already in use. Choose another port."
 fi
 
+panel_section "MINECRAFT EULA"
+panel_blank
+panel_row "You must read and agree to the Minecraft EULA."
+panel_row "https://aka.ms/MinecraftEULA"
+panel_blank
+panel_row "The installer will only continue if you agree."
+panel_bottom
 echo
-section "MINECRAFT EULA"
-warn "You must agree to the Minecraft EULA before running the server."
-echo "Read: https://aka.ms/MinecraftEULA"
-ask "Do you agree to the EULA? [y/N]: " EULA_CHOICE
+ask "Do you agree? [y/N]: " EULA_CHOICE
 [[ "$EULA_CHOICE" =~ ^[Yy]$ ]] || fail "EULA not accepted; cancelled."
 
 # Never overwrite existing files in the working directory.
@@ -228,7 +296,7 @@ NEED_DISK_MB=2048
 case "$SOFTWARE" in Spigot) NEED_DISK_MB=8192 ;; Forge) NEED_DISK_MB=4096 ;; esac
 (( DISK_FREE_MB >= NEED_DISK_MB )) || fail "Not enough free disk space. Need about ${NEED_DISK_MB} MB."
 
-section "JAVA VALIDATION"
+panel_section "JAVA VALIDATION"
 # Find an exact Java major version. Spigot's BuildTools requires a JDK.
 NEED_JDK=0
 [[ "$SOFTWARE" == "Spigot" ]] && NEED_JDK=1
@@ -344,9 +412,16 @@ download_spigot(){
 }
 
 echo
-line
-printf '%bInstalling %s %s...%b\n' "$CYAN" "$SOFTWARE" "$MC_VERSION" "$RESET"
-line
+panel_section "INSTALLATION PROGRESS"
+panel_blank
+panel_row "[OK] System requirements checked"
+panel_row "[OK] Java $REQUIRED_JAVA selected"
+panel_row "[OK] RAM and network settings saved"
+panel_row "[OK] EULA accepted"
+panel_row "[..] Downloading and preparing ${SOFTWARE}..."
+panel_bottom
+echo
+info "Installing ${SOFTWARE} ${MC_VERSION}. Please wait..."
 case "$SOFTWARE" in
     Paper) download_paper ;;
     Purpur) download_purpur ;;
@@ -401,20 +476,33 @@ chmod 0644 eula.txt server.properties
 
 INSTALL_COMPLETE=1
 echo
-line
-printf '%b       FEBREZEMC SETUP COMPLETE!%b\n' "$GREEN" "$RESET"
-line
-printf '  %-16s %s\\n' "Software:" "$SOFTWARE"
-printf '  %-16s %s\\n' "Minecraft:" "$MC_VERSION"
-printf '  %-16s %s\\n' "Java:" "$JAVA_BIN"
-printf '  %-16s %s GB\\n' "Allocated RAM:" "$RAM_GB"
-printf '  %-16s %s\\n' "Online mode:" "$ONLINE_MODE"
-printf '  %-16s %s\\n' "Server port:" "$SERVER_PORT"
-printf '  %-16s %s\\n' "Server folder:" "$SERVER_DIR"
+panel_section "INSTALLATION COMPLETED"
+panel_blank
+panel_row "[OK] Server software downloaded"
+panel_row "[OK] Server configuration created"
+panel_row "[OK] RAM settings configured"
+panel_row "[OK] EULA accepted"
+panel_blank
+panel_row "SOFTWARE   : ${SOFTWARE}"
+panel_row "VERSION    : ${MC_VERSION}"
+panel_row "JAVA       : ${REQUIRED_JAVA}"
+panel_row "RAM        : ${RAM_GB} GB"
+panel_row "PORT       : ${SERVER_PORT}"
+panel_row "AUTH       : $([[ "$ONLINE_MODE" == true ]] && echo Online || echo Offline)"
+panel_blank
+panel_row "SERVER ADDRESS"
+panel_row "YOUR_VPS_IP:${SERVER_PORT}"
+panel_blank
+panel_row "Start server : ./start.sh"
+panel_row "Stop server  : type stop in its console"
+panel_row "Folder       : ${SERVER_DIR}"
+panel_blank
+panel_bottom
 echo
-success "Files are ready. Start your server with: ./start.sh"
-info "The server runs in the foreground. Type stop in its console to shut it down."
-
-warn "Offline mode is not recommended for public servers."
-line
+success "Your Minecraft server files are ready!"
+info "The server is not started automatically. Run ./start.sh to launch it."
+if [[ "$ONLINE_MODE" == false ]]; then
+    warn "Offline mode is not recommended for public servers."
+fi
+echo
 success "Thank you for using FebrezeMC!"
