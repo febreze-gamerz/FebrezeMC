@@ -34,7 +34,7 @@ if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]] && [[ "${TERM:-}" != "dumb" ]]; th
     YELLOW=$'\033[38;5;221m'
     RED=$'\033[38;5;204m'
     WHITE=$'\033[38;5;255m'
-    DIM=$'\033[38;5;246m'
+    DIM=$'\033[38;5;245m'
     BOLD=$'\033[1m'
     RESET=$'\033[0m'
 else
@@ -49,39 +49,66 @@ line(){ printf '%b%s%b\n' "$BLUE" "───────────────
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-# Strip ANSI color sequences so right-border padding is always exact.
-strip_ansi(){
-    local s="$1"
-    local esc=$'\033'
-    while [[ "$s" =~ ^(.*)"${esc}"\[[0-9\;]*m(.*)$ ]]; do
-        s="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
-    done
-    printf '%s' "$s"
+# Count visible characters (excluding ANSI CSI sequences like \033[38;5;81m).
+visible_len(){
+    local s="$1" clean
+    clean="$(printf '%s' "$s" | sed -E $'s/\x1B\\[[0-9;]*[A-Za-z]//g')"
+    LC_ALL=C.UTF-8 printf '%s' "$clean" | awk '{ print length($0) }'
 }
 
-pad_inner(){
-    local content="$1"
-    local width="$2"
-    local plain len
-    plain="$(strip_ansi "$content")"
-    len=${#plain}
-    if (( len >= width )); then
-        printf '%s' "$content"
+# Print a row inside a 60-col box (inner width = 58: 1 space left + 56 content + 1 space right).
+# Usage: box_line "default_color" "content_with_optional_escapes"
+box_line(){
+    local base_color="$1"
+    local content="$2"
+    local inner_w=56
+    local vlen pad
+
+    vlen="$(visible_len "$content")"
+    if (( vlen > inner_w )); then
+        pad=0
     else
-        printf '%s%*s' "$content" "$((width - len))" ""
+        pad=$(( inner_w - vlen ))
     fi
+
+    printf '%b║%b %b%s%b%*s %b║%b\n' \
+        "$BLUE" "$RESET" \
+        "$base_color" "$content" "$RESET" \
+        "$pad" "" \
+        "$BLUE" "$RESET"
 }
 
-# Consistent 60-column terminal panels (inner width = 58).
+box_center(){
+    local base_color="$1"
+    local content="$2"
+    local inner_w=56
+    local vlen total_pad left_pad right_pad
+
+    vlen="$(visible_len "$content")"
+    if (( vlen >= inner_w )); then
+        left_pad=0
+        right_pad=0
+    else
+        total_pad=$(( inner_w - vlen ))
+        left_pad=$(( total_pad / 2 ))
+        right_pad=$(( total_pad - left_pad ))
+    fi
+
+    printf '%b║%b %*s%b%s%b%*s %b║%b\n' \
+        "$BLUE" "$RESET" \
+        "$left_pad" "" \
+        "$base_color" "$content" "$RESET" \
+        "$right_pad" "" \
+        "$BLUE" "$RESET"
+}
+
 panel_top(){
     printf '%b╔══════════════════════════════════════════════════════════╗%b\n' "$BLUE" "$RESET"
-    printf '%b║%b %b%-57s%b%b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$1" "$RESET" "$BLUE" "$RESET"
+    box_line "$BOLD$CYAN" "$1"
     printf '%b╠══════════════════════════════════════════════════════════╣%b\n' "$BLUE" "$RESET"
 }
 panel_row(){
-    local padded
-    padded="$(pad_inner "$1" 56)"
-    printf '%b║%b  %b%s%b  %b║%b\n' "$BLUE" "$RESET" "$WHITE" "$padded" "$RESET" "$BLUE" "$RESET"
+    box_line "$WHITE" "$1"
 }
 panel_blank(){
     printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
@@ -94,27 +121,29 @@ panel_section(){
     printf '\n'
     panel_top "$1"
 }
+
 banner(){
     clear 2>/dev/null || true
     panel_top "FEBREZEMC"
     panel_blank
-    printf '%b║%b %b      ███████╗███████╗██████╗ ██████╗ ███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b      ██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b      █████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b      ██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b      ██║     ███████╗██║  ██║██║  ██║███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b      ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    box_center "$BOLD$CYAN" "███████╗███████╗██████╗ ██████╗ ███████╗"
+    box_center "$BOLD$CYAN" "██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝"
+    box_center "$BOLD$CYAN" "█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ "
+    box_center "$BOLD$CYAN" "██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  "
+    box_center "$BOLD$CYAN" "██║     ███████╗██║  ██║██║  ██║███████╗"
+    box_center "$BOLD$CYAN" "╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝"
     panel_blank
-    printf '%b║%b %b                  FEBREZEMC                             %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
-    printf '%b║%b %b           MINECRAFT SERVER INSTALLER                   %b║%b\n' "$BLUE" "$RESET" "$CYAN" "$RESET" "$BLUE" "$RESET"
+    box_center "$BOLD$CYAN" "FEBREZEMC"
+    box_center "$CYAN" "MINECRAFT SERVER INSTALLER"
     panel_blank
-    printf '%b║%b %b                   Version %-25s%b║%b\n' "$BLUE" "$RESET" "$GREEN" "$FEBREZE_VERSION" "$RESET" "$BLUE" "$RESET"
+    box_center "$BOLD$GREEN" "Version ${FEBREZE_VERSION}"
     panel_blank
     panel_bottom
 }
+
 ask(){
     local prompt="$1" var="$2" value=""
-    printf '%b%b%b' "$BOLD$CYAN" "$prompt" "$RESET"
+    printf '%b%s%b' "$BOLD$CYAN" "$prompt" "$RESET"
     IFS= read -r value || fail "No input received. Run this installer in an interactive terminal."
     printf -v "$var" '%s' "$value"
 }
