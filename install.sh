@@ -49,7 +49,7 @@ line(){ printf '%b%s%b\n' "$BLUE" "───────────────
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
 
-# Count visible characters (excluding ANSI escape sequences)
+# Count UTF-8 characters (excluding ANSI escape sequences) even when LC_ALL=C is set
 visible_len(){
     local s="$1"
     local esc=$'\033'
@@ -70,7 +70,7 @@ visible_len(){
         fi
     done
 
-    printf '%s' "${#out}"
+    LC_ALL=C.UTF-8 printf '%s' "$out" | awk '{ print length($0) }'
 }
 
 # Inner width between left '║' and right '║' is 58 columns:
@@ -128,7 +128,7 @@ panel_row(){
     box_line "$WHITE" "$1"
 }
 panel_blank(){
-    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    box_line "$WHITE" ""
 }
 panel_bottom(){
     printf '%b╚══════════════════════════════════════════════════════════╝%b\n' "$BLUE" "$RESET"
