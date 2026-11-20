@@ -139,21 +139,23 @@ panel_section(){
 
 banner(){
     clear 2>/dev/null || true
-    panel_top "FEBREZEMC"
-    panel_blank
-    box_center "$BOLD$CYAN" "███████╗███████╗██████╗ ██████╗ ███████╗"
-    box_center "$BOLD$CYAN" "██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝"
-    box_center "$BOLD$CYAN" "█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ "
-    box_center "$BOLD$CYAN" "██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  "
-    box_center "$BOLD$CYAN" "██║     ███████╗██║  ██║██║  ██║███████╗"
-    box_center "$BOLD$CYAN" "╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝"
-    panel_blank
-    box_center "$BOLD$CYAN" "FEBREZEMC"
-    box_center "$CYAN" "MINECRAFT SERVER INSTALLER"
-    panel_blank
-    box_center "$BOLD$GREEN" "Version ${FEBREZE_VERSION}"
-    panel_blank
-    panel_bottom
+    printf '%b╔══════════════════════════════════════════════════════════╗%b\n' "$BLUE" "$RESET"
+    printf '%b║%b  %bFEBREZEMC%b                                              %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b╠══════════════════════════════════════════════════════════╣%b\n' "$BLUE" "$RESET"
+    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    printf '%b║%b       %b███████╗███████╗██████╗ ██████╗ ███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b       %b██╔════╝██╔════╝██╔══██╗██╔══██╗╚══███╔╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b       %b█████╗  █████╗  ██████╔╝██████╔╝  ███╔╝ %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b       %b██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗ ███╔╝  %b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b       %b██║     ███████╗██║  ██║██║  ██║███████╗%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b       %b╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝%b          %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    printf '%b║%b                   %bFEBREZEMC%b                             %b║%b\n' "$BLUE" "$RESET" "$BOLD$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║%b            %bMINECRAFT SERVER INSTALLER%b                   %b║%b\n' "$BLUE" "$RESET" "$CYAN" "$RESET" "$BLUE" "$RESET"
+    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    printf '%b║%b                    %bVersion %-24s%b%b║%b\n' "$BLUE" "$RESET" "$BOLD$GREEN" "$FEBREZE_VERSION" "$RESET" "$BLUE" "$RESET"
+    printf '%b║                                                          ║%b\n' "$BLUE" "$RESET"
+    printf '%b╚══════════════════════════════════════════════════════════╝%b\n' "$BLUE" "$RESET"
 }
 
 ask(){
