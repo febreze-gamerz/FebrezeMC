@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# FebrezeMC 2.1.0 - Minecraft server installer
-# Installs into the current working directory (VPS or Pterodactyl).
-# Pterodactyl startup command: bash ./start.sh
+# FebrezeMC 2.2.0 - Standalone Minecraft server installer
+# Installs into the current working directory on Linux.
 set -Eeuo pipefail
 IFS=$'\n\t'
 export LC_ALL=C
 
-FEBREZE_VERSION="2.1.0"
+FEBREZE_VERSION="2.2.0"
 USER_AGENT="FebrezeMC/${FEBREZE_VERSION} (https://github.com/febreze-gamerz/FebrezeMC)"
 MANIFEST_URL="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 DEFAULT_PORT=25565
@@ -14,10 +13,8 @@ RESERVED_RAM_MB=1024
 DRY_RUN="${FEBREZEMC_DRY_RUN:-0}"
 
 SERVER_DIR="$(pwd -P)"
-IS_PTERODACTYL=0
 SOFTWARE=""
 MC_VERSION=""
-PANEL_PORT="${SERVER_PORT:-}"
 SERVER_PORT=""
 RAM_GB=""
 ONLINE_MODE=true
@@ -39,6 +36,24 @@ error(){ printf '%b[ERROR]%b %s\n' "$RED" "$RESET" "$*" >&2; }
 line(){ printf '%b%s%b\n' "$BLUE" "────────────────────────────────────────────────────────────────" "$RESET"; }
 fail(){ error "$*"; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1; }
+
+section(){
+    printf '\\n%b━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\\n' "$BLUE" "$RESET"
+    printf '%b  %s%b\\n' "$CYAN" "$1" "$RESET"
+    printf '%b━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\\n' "$BLUE" "$RESET"
+}
+banner(){
+    printf '%b' "$CYAN"
+    cat <<'BANNER'
+  ______          __                    __  ___ ____
+ / ____/___ _____/ /__  ______  ______/  |/  // __ \\
+/ /_  / __ `/ __  / _ \\/ ___/ / / / __/ /|_/ // / / /
+/ __/ / /_/ / /_/ /  __/ /  / /_/ / /_/ /  / // /_/ /
+/_/    \\__,_/\\__,_/\\___/_/   \\__,_/\\__/_/  /_/\\____/
+BANNER
+    printf '%b  MINECRAFT SERVER INSTALLER  •  v%s%b\\n' "$BLUE" "$FEBREZE_VERSION" "$RESET"
+    printf '%b  Standalone Linux edition%b\\n' "$GREEN" "$RESET"
+}
 
 ask(){
     local prompt="$1" var="$2" value=""
@@ -97,28 +112,18 @@ ARCH="$(uname -m)"
 case "$ARCH" in x86_64|aarch64|arm64) ;; *) fail "Unsupported CPU architecture: $ARCH." ;; esac
 case "$OS_ID $OS_LIKE" in *alpine*) fail "Alpine Linux is not supported yet." ;; esac
 
-# Pterodactyl Wings commonly supplies these variables to the container.
-if [[ "${PTERODACTYL:-}" == "1" || -n "${P_SERVER_UUID:-}" ||
-      ( -n "${SERVER_UUID:-}" && -n "${SERVER_MEMORY:-}" ) ]]; then
-    IS_PTERODACTYL=1
-fi
-
-# Require tools that the installer actually uses. Do not install packages in containers
-# or for ordinary users. A root VPS operator can install missing packages separately.
-for cmd in bash curl jq unzip awk sed grep find df free nproc readlink; do
+# Require the tools used by this standalone Linux installer.
+for cmd in bash curl jq unzip awk sed grep find df nproc readlink; do
     need "$cmd" || fail "Required command '$cmd' is missing. Install it first, then rerun FebrezeMC."
 done
-for cmd in sha1sum sha256sum; do need "$cmd" || fail "Required command '$cmd' is missing."; done
-if (( IS_PTERODACTYL == 0 )); then need ss || warn "The 'ss' command is unavailable; port-use checking will be skipped."; fi
+for cmd in sha1sum sha256sum; do
+    need "$cmd" || fail "Required command '$cmd' is missing."
+done
+need ss || warn "The 'ss' command is unavailable; port-use checking will be skipped."
 
-# Work out memory visible to this process. SERVER_MEMORY is Pterodactyl's MB limit.
-if (( IS_PTERODACTYL == 1 )) && [[ "${SERVER_MEMORY:-}" =~ ^[0-9]+$ ]] && (( SERVER_MEMORY > 0 )); then
-    RAM_TOTAL_MB="$SERVER_MEMORY"
-    RAM_AVAILABLE_MB="$SERVER_MEMORY"
-else
-    RAM_TOTAL_MB="$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)"
-    RAM_AVAILABLE_MB="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
-fi
+# Detect system memory.
+RAM_TOTAL_MB="$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)"
+RAM_AVAILABLE_MB="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
 CPU_CORES="$(nproc)"
 DISK_FREE_MB="$(free_mb_at "$SERVER_DIR")"
 MAX_RAM_GB=$(( (RAM_AVAILABLE_MB - RESERVED_RAM_MB) / 1024 ))
@@ -132,35 +137,40 @@ printf '%b       FEBREZEMC SERVER INSTALLER%b\n' "$CYAN" "$RESET"
 printf '%b       Version %s%b\n' "$BLUE" "$FEBREZE_VERSION" "$RESET"
 line
 echo
-if (( DRY_RUN == 1 )); then warn "DRY RUN: no files will be downloaded or created."; fi
-if (( IS_PTERODACTYL == 1 )); then
-    < /dev/null
-    info "Environment: Pterodactyl container"
-else
-    info "Environment: normal Linux"
+banner
+section "SYSTEM CHECK"
+if (( DRY_RUN == 1 )); then
+    warn "DRY RUN enabled — downloads and file creation will be skipped."
 fi
-printf '  Operating system : %s\n  Architecture     : %s\n  CPU cores        : %s\n  Memory limit     : %s MB\n  Memory available : %s MB\n  Free disk        : %s MB\n  Install folder   : %s\n' \
-    "$OS_NAME" "$ARCH" "$CPU_CORES" "$RAM_TOTAL_MB" "$RAM_AVAILABLE_MB" "$DISK_FREE_MB" "$SERVER_DIR"
+info "Environment: standalone Linux"
+printf '  %-20s %s\\n' "Operating system:" "$OS_NAME"
+printf '  %-20s %s\\n' "Architecture:" "$ARCH"
+printf '  %-20s %s\\n' "CPU cores:" "$CPU_CORES"
+printf '  %-20s %s MB\\n' "Total memory:" "$RAM_TOTAL_MB"
+printf '  %-20s %s MB\\n' "Available memory:" "$RAM_AVAILABLE_MB"
+printf '  %-20s %s MB\\n' "Free disk:" "$DISK_FREE_MB"
+printf '  %-20s %s\\n' "Install folder:" "$SERVER_DIR"
 echo
-if (( IS_PTERODACTYL == 1 )); then
-    info "Pterodactyl will manage the Minecraft process. FebrezeMC will not use screen or start a background process."
-else
-    info "The server will be created here. Start it later with: ./start.sh"
-fi
-ask "Continue? [y/N]: " CONTINUE
+info "The server will be created here. Start it later with: ./start.sh"
+ask "Continue with installation? [y/N]: " CONTINUE
+[[ "$CONTINUE" =~ ^[Yy]$ ]] || fail "Installation cancelled."
+
+section "SERVER SOFTWARE"
+printf '%bSelect Minecraft server software:%b\\n' "$CYAN" "$RESET"
 [[ "$CONTINUE" =~ ^[Yy]$ ]] || fail "Cancelled."
 
 echo
 printf '%bSelect Minecraft server software:%b\n' "$CYAN" "$RESET"
 echo "  1) Paper   2) Purpur   3) Vanilla"
 echo "  4) Forge   5) Spigot   6) Fabric"
-ask "Choose [1-6]: " SOFTWARE_CHOICE
+ask "Select software [1-6]: " SOFTWARE_CHOICE
 case "$SOFTWARE_CHOICE" in
     1) SOFTWARE="Paper" ;; 2) SOFTWARE="Purpur" ;; 3) SOFTWARE="Vanilla" ;;
     4) SOFTWARE="Forge" ;; 5) SOFTWARE="Spigot" ;; 6) SOFTWARE="Fabric" ;;
     *) fail "Invalid software selection." ;;
 esac
 
+section "MINECRAFT VERSION"
 ask "Minecraft version (example: 1.21.11): " MC_VERSION
 [[ "$MC_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "Invalid Minecraft version format."
 info "Checking Mojang version metadata..."
@@ -172,6 +182,8 @@ REQUIRED_JAVA="$(jq -r '.javaVersion.majorVersion // 8' <<< "$VERSION_META")"
 [[ "$REQUIRED_JAVA" =~ ^[0-9]+$ ]] || fail "Could not read the required Java version."
 info "Minecraft $MC_VERSION requires Java $REQUIRED_JAVA."
 
+section "MEMORY ALLOCATION"
+info "Suggested maximum allocation: ${MAX_RAM_GB} GB."
 ask "Server RAM in GB [${DEFAULT_RAM}]: " RAM_GB
 RAM_GB="${RAM_GB:-$DEFAULT_RAM}"
 [[ "$RAM_GB" =~ ^[0-9]{1,3}$ ]] || fail "RAM must be a whole number."
@@ -189,25 +201,19 @@ case "$AUTH_CHOICE" in
     *) fail "Choose 1 or 2." ;;
 esac
 
+section "NETWORK CONFIGURATION"
 PORT_DEFAULT="$DEFAULT_PORT"
-if (( IS_PTERODACTYL == 1 )) && [[ "$PANEL_PORT" =~ ^[0-9]+$ ]]; then
-    PORT_DEFAULT="$PANEL_PORT"
-fi
 ask "Server port [${PORT_DEFAULT}]: " SERVER_PORT
 SERVER_PORT="${SERVER_PORT:-$PORT_DEFAULT}"
 [[ "$SERVER_PORT" =~ ^[0-9]{1,5}$ ]] || fail "Port must be a number."
 SERVER_PORT=$((10#$SERVER_PORT))
 (( SERVER_PORT >= 1 && SERVER_PORT <= 65535 )) || fail "Port must be between 1 and 65535."
-if (( IS_PTERODACTYL == 1 )); then
-    if [[ "$PANEL_PORT" =~ ^[0-9]+$ && "$SERVER_PORT" != "$PANEL_PORT" ]]; then
-        fail "Pterodactyl assigned port $PANEL_PORT. Use that allocated port."
-    fi
-    info "Using the port allocated to this Pterodactyl server."
-elif need ss && ss -H -ltn "sport = :${SERVER_PORT}" 2>/dev/null | grep -q .; then
+if need ss && ss -H -ltn "sport = :${SERVER_PORT}" 2>/dev/null | grep -q .; then
     fail "TCP port $SERVER_PORT is already in use. Choose another port."
 fi
 
 echo
+section "MINECRAFT EULA"
 warn "You must agree to the Minecraft EULA before running the server."
 echo "Read: https://aka.ms/MinecraftEULA"
 ask "Do you agree to the EULA? [y/N]: " EULA_CHOICE
@@ -222,6 +228,7 @@ NEED_DISK_MB=2048
 case "$SOFTWARE" in Spigot) NEED_DISK_MB=8192 ;; Forge) NEED_DISK_MB=4096 ;; esac
 (( DISK_FREE_MB >= NEED_DISK_MB )) || fail "Not enough free disk space. Need about ${NEED_DISK_MB} MB."
 
+section "JAVA VALIDATION"
 # Find an exact Java major version. Spigot's BuildTools requires a JDK.
 NEED_JDK=0
 [[ "$SOFTWARE" == "Spigot" ]] && NEED_JDK=1
@@ -397,16 +404,17 @@ echo
 line
 printf '%b       FEBREZEMC SETUP COMPLETE!%b\n' "$GREEN" "$RESET"
 line
-printf '  Environment : %s\n  Software    : %s\n  Version     : %s\n  Java        : %s\n  RAM         : %s GB\n  Online mode : %s\n  Port        : %s\n  Directory   : %s\n' \
-    "$([[ "$IS_PTERODACTYL" == 1 ]] && echo Pterodactyl || echo Linux)" "$SOFTWARE" "$MC_VERSION" "$JAVA_BIN" "$RAM_GB" "$ONLINE_MODE" "$SERVER_PORT" "$SERVER_DIR"
+printf '  %-16s %s\\n' "Software:" "$SOFTWARE"
+printf '  %-16s %s\\n' "Minecraft:" "$MC_VERSION"
+printf '  %-16s %s\\n' "Java:" "$JAVA_BIN"
+printf '  %-16s %s GB\\n' "Allocated RAM:" "$RAM_GB"
+printf '  %-16s %s\\n' "Online mode:" "$ONLINE_MODE"
+printf '  %-16s %s\\n' "Server port:" "$SERVER_PORT"
+printf '  %-16s %s\\n' "Server folder:" "$SERVER_DIR"
 echo
-if (( IS_PTERODACTYL == 1 )); then
-    success "Files are ready. Set the Pterodactyl Startup Command to: bash ./start.sh"
-    info "The panel will manage the server process. Do not run start.sh from the installer."
-else
-    success "Files are ready. Start the server with: ./start.sh"
-    info "The server runs in the foreground. Stop it by typing stop in its console."
-fi
+success "Files are ready. Start your server with: ./start.sh"
+info "The server runs in the foreground. Type stop in its console to shut it down."
+
 warn "Offline mode is not recommended for public servers."
 line
 success "Thank you for using FebrezeMC!"
